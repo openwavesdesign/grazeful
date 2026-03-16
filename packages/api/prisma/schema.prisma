@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WeightUnit {
+  LBS
+  KG
+}
+
+enum TargetPace {
+  SLOW    // 0.5 lb/week
+  STEADY  // 1.0 lb/week
+  ACTIVE  // 1.5 lb/week
+}
+
+enum CookTimePreference {
+  QUICK    // under 10 min
+  MODERATE // 10–30 min
+  FULL     // 30+ min
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum ReminderInputType {
+  YES_NO
+  COUNT
+  RATING
+}
+
+enum FeelingScore {
+  ENERGIZED
+  NORMAL
+  SLUGGISH
+  HUNGRY
+}
+
+model User {
+  id                  String             @id @default(uuid())
+  clerkId             String             @unique
+  email               String             @unique
+  name                String
+  createdAt           DateTime           @default(now())
+  currentWeight       Float
+  goalWeight          Float
+  height              Int                // inches
+  age                 Int
+  targetPace          TargetPace         @default(STEADY)
+  weightUnit          WeightUnit         @default(LBS)
+  dietaryRestrictions String[]
+  dislikedFoods       String?
+  cookTimePreference  CookTimePreference @default(MODERATE)
+  mealPlanPreferences Json?
+
+  weightEntries WeightEntry[]
+  mealPlans     MealPlan[]
+  mealLogs      MealLog[]
+  favoriteMeals Meal[]        @relation("FavoriteMeals")
+  reminders     Reminder[]
+  reminderLogs  ReminderLog[]
+}
+
+model WeightEntry {
+  id       String   @id @default(uuid())
+  userId   String
+  weight   Float
+  loggedAt DateTime @default(now())
+  note     String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model MealPlan {
+  id               String   @id @default(uuid())
+  userId           String
+  weekStartDate    DateTime
+  generatedAt      DateTime @default(now())
+  planData         Json     // full 7-day plan
+  groceryList      Json     // grouped by store section
+  prepInstructions Json     // step-by-step
+  isActive         Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Meal {
+  id              String   @id @default(uuid())
+  name            String
+  description     String
+  mealType        MealType
+  healthScore     Int      // 1–5, AI-assigned
+  prepTimeMinutes Int
+  tags            String[]
+  userId          String?  // null = system meal
+
+  favoritedBy User[]    @relation("FavoriteMeals")
+  mealLogs    MealLog[]
+}
+
+model MealLog {
+  id             String        @id @default(uuid())
+  userId         String
+  mealId         String?
+  customMealName String?
+  mealType       MealType
+  healthScore    Int           // 1–5, user-selected
+  feelingScore   FeelingScore?
+  loggedAt       DateTime      @default(now())
+  wasPlanned     Boolean       @default(false)
+  skipped        Boolean       @default(false)
+
+  user User  @relation(fields: [userId], references: [id])
+  meal Meal? @relation(fields: [mealId], references: [id])
+}
+
+model Reminder {
+  id             String            @id @default(uuid())
+  userId         String
+  label          String
+  isMealReminder Boolean           @default(false)
+  mealType       MealType?
+  inputType      ReminderInputType @default(YES_NO)
+  time           String            // "HH:MM"
+  daysOfWeek     Int[]             // 0=Sun … 6=Sat
+  isActive       Boolean           @default(true)
+
+  user User          @relation(fields: [userId], references: [id])
+  logs ReminderLog[]
+}
+
+model ReminderLog {
+  id         String   @id @default(uuid())
+  reminderId String
+  userId     String
+  response   String
+  loggedAt   DateTime @default(now())
+
+  reminder Reminder @relation(fields: [reminderId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+}
