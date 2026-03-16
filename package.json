@@ -1,0 +1,12 @@
+{
+  "name": "grazeful",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "api": "npm run dev --workspace=packages/api",
+    "mobile": "npm run start --workspace=apps/mobile"
+  }
+}
